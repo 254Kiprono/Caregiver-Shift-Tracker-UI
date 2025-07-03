@@ -2,27 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Header from '../components/Header';
-import { Button } from '../components/ui-setupconfig/button';
+import { Button } from '../components/ui/button';
 import DurationDisplay from '../components/clockout/DurationDisplay';
 import TasksSection from '../components/clockout/TasksSection';
 import LocationDisplay from '../components/clockout/LocationDisplay';
 import ServiceNotes from '../components/clockout/ServiceNotes';
 import CompletionModal from '../components/clockout/CompletionModal';
 import { Schedule, Task } from '../types/schedule';
-import { scheduleService } from '../services/scheduleService';
+import { getScheduleById, endVisit, updateTaskStatus } from '../services/mockData';
 import { useToast } from '../hooks/use-toast';
 import { useGeolocation } from '../hooks/useGeolocation';
-
-// Helper function to calculate duration
-const calculateDuration = (startTime: string, endTime: string): string => {
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  const diffMs = end.getTime() - start.getTime();
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-  return `${diffHours.toString().padStart(2, '0')}:${diffMinutes.toString().padStart(2, '0')}:${diffSeconds.toString().padStart(2, '0')}`;
-};
 
 const ClockOut: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,23 +29,10 @@ const ClockOut: React.FC = () => {
       if (!id) return;
       
       try {
-        const scheduleData = await scheduleService.getScheduleById(id);
+        const scheduleData = await getScheduleById(id);
         if (scheduleData) {
-          // Map API data to frontend interface
-          const mappedSchedule = {
-            ...scheduleData,
-            caregiverName: scheduleData.client_name || 'Unknown Client',
-            serviceName: `Service for ${scheduleData.client_name || 'Client'}`,
-            duration: scheduleData.start_time && scheduleData.end_time 
-              ? calculateDuration(scheduleData.start_time, scheduleData.end_time)
-              : undefined
-          };
-          setSchedule(mappedSchedule);
-          setTasks(scheduleData.tasks.map(task => ({ 
-            ...task, 
-            name: task.description,
-            completed: task.status === 'completed'
-          })));
+          setSchedule(scheduleData);
+          setTasks(scheduleData.tasks.map(task => ({ ...task })));
         }
       } catch (error) {
         console.error('Failed to load schedule:', error);
@@ -97,46 +73,39 @@ const ClockOut: React.FC = () => {
     try {
       console.log('Starting clock-out process for schedule:', id);
       
-      // Get current location first
-      if (!latitude || !longitude) {
-        await getCurrentLocation();
-      }
-
       // Update task statuses first
-      for (const task of tasks) {
+      const taskUpdatePromises = tasks.map(async (task) => {
         try {
           console.log('Updating task:', task.id, task.completed ? 'completed' : 'not_completed');
-          await scheduleService.updateTaskStatus(task.id, {
+          await updateTaskStatus(task.id, {
             status: task.completed ? 'completed' : 'not_completed',
             reason: task.reason || undefined,
           });
+          return { success: true, taskId: task.id };
         } catch (error) {
           console.error('Failed to update task:', task.id, error);
-          // Continue with other tasks even if one fails
+          return { success: false, taskId: task.id, error };
         }
+      });
+
+      const taskResults = await Promise.all(taskUpdatePromises);
+      const failedTasks = taskResults.filter(result => !result.success);
+      
+      if (failedTasks.length > 0) {
+        console.warn('Some tasks failed to update:', failedTasks);
+        // Continue with clock-out even if some tasks failed
       }
 
-      // End the visit with location - only proceed if we have valid coordinates
-      if (latitude && longitude && latitude !== 0 && longitude !== 0) {
-        console.log('Ending visit with location:', { latitude, longitude });
-        
-        try {
-          await scheduleService.endVisit(id, { latitude, longitude });
-          console.log('Visit ended successfully');
-        } catch (endVisitError) {
-          console.error('EndVisit failed:', endVisitError);
-          throw endVisitError; // Re-throw to handle properly
-        }
-      } else {
-        console.warn('No valid location available for clock-out');
-        toast({
-          title: "Location Required",
-          description: "Please enable location services to complete clock-out.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // End the visit with location if available, otherwise use default coordinates
+      const clockOutLat = latitude || 0;
+      const clockOutLng = longitude || 0;
       
+      console.log('Ending visit with location:', { latitude: clockOutLat, longitude: clockOutLng });
+      
+      await endVisit(id, clockOutLat, clockOutLng);
+      console.log('Visit ended successfully');
+      
+      // Show success message
       toast({
         title: "Schedule Completed",
         description: "You have successfully completed this schedule.",

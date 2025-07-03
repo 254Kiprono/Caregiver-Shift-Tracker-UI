@@ -5,7 +5,7 @@ export interface Schedule {
   client_name: string;
   location: string;
   shift_time: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'missed';
   start_time?: string;
   end_time?: string;
   start_lat?: number;

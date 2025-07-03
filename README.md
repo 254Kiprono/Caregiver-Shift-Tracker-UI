@@ -49,7 +49,7 @@ A modern frontend web application for caregiver shift tracking and Electronic Vi
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/254Kiprono/Caregiver-Shift-Tracker-UI.git
 cd careviah-frontend
 ```
 

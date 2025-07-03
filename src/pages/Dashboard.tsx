@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, CheckCircle, Clock } from 'lucide-react';
 import Header from '../components/Header';
-import { Button } from '../components/ui-setupconfig/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui-setupconfig/card';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import ScheduleCard from '../components/ScheduleCard';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { Schedule, DashboardStats } from '../types/schedule';
 import { scheduleService } from '../services/scheduleService';
 import { useIsMobile } from '../hooks/use-mobile';
-import { toast } from '../components/ui-setupconfig/use-toast';
+import { toast } from '../components/ui/use-toast';
 import ActiveSessionCard from '../components/ActiveSessionCard';
 
 const Dashboard: React.FC = () => {
@@ -20,23 +20,48 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isMounted = useRef(true);
   const isMobile = useIsMobile();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (showErrorToast: boolean = true) => {
     try {
-      setLoading(true);
-      setError(null);
+      console.log('Loading dashboard data silently...');
       
-      console.log('Loading dashboard data...');
+      // Load all different schedule types
+      const [
+        todaySchedules,
+        upcomingSchedules, 
+        missedSchedules,
+        completedSchedules
+      ] = await Promise.all([
+        scheduleService.getTodaySchedules(),
+        scheduleService.getUpcomingSchedules(),
+        scheduleService.getMissedSchedules(),
+        scheduleService.getTodayCompletedSchedules()
+      ]);
       
-      // Load all schedules for today (00:00 to 23:59)
-      const allSchedules = await scheduleService.getAllSchedules();
+      // Only update state if component is still mounted
+      if (!isMounted.current) return;
       
-      console.log('All schedules for today:', allSchedules);
+      console.log('Today schedules:', todaySchedules);
+      console.log('Upcoming schedules:', upcomingSchedules);
+      console.log('Missed schedules:', missedSchedules);
+      console.log('Completed schedules:', completedSchedules);
+      
+      // Combine all schedules, avoiding duplicates
+      const allSchedules = [
+        ...todaySchedules,
+        ...upcomingSchedules,
+        ...missedSchedules,
+        ...completedSchedules
+      ].filter((schedule, index, self) => 
+        index === self.findIndex(s => s.id === schedule.id)
+      );
       
       console.log('Combined schedules:', allSchedules);
       
-      // Calculate stats with corrected logic
+      // Calculate stats - properly count backend missed schedules
       const today = new Date();
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
       const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
@@ -44,22 +69,20 @@ const Dashboard: React.FC = () => {
       
       console.log('Time boundaries:', { startOfToday, endOfToday, now });
       
-      // Calculate missed schedules from last 24 hours (00:00 to 23:59)
+      // Count missed schedules - those with status 'missed' from today
       const missedCount = allSchedules.filter(schedule => {
         const scheduleTime = new Date(schedule.shift_time);
-        const isWithinLast24Hours = scheduleTime >= startOfToday && scheduleTime <= endOfToday;
-        const isMissed = isScheduleMissed(schedule);
-        const isCancelled = schedule.status === 'cancelled';
+        const isWithinToday = scheduleTime >= startOfToday && scheduleTime <= endOfToday;
+        const isMissed = schedule.status === 'missed';
         
-        console.log(`Schedule ${schedule.id}:`, {
+        console.log(`Schedule ${schedule.id} missed check:`, {
           scheduleTime,
-          isWithinLast24Hours,
+          isWithinToday,
           isMissed,
-          isCancelled,
           status: schedule.status
         });
         
-        return isWithinLast24Hours && (isMissed || isCancelled);
+        return isWithinToday && isMissed;
       }).length;
       
       // Calculate upcoming today schedules (future schedules for today only)
@@ -68,30 +91,23 @@ const Dashboard: React.FC = () => {
         const scheduleDate = scheduleTime.toDateString();
         const todayDate = today.toDateString();
         const isFutureTime = scheduleTime > now;
-        const isScheduledOrInProgress = schedule.status === 'scheduled' || schedule.status === 'in_progress';
-        const isNotMissed = !isScheduleMissed(schedule);
+        const isScheduled = schedule.status === 'scheduled';
         
         console.log(`Upcoming check for schedule ${schedule.id}:`, {
           scheduleTime,
           scheduleDate,
           todayDate,
           isFutureTime,
-          isScheduledOrInProgress,
-          isNotMissed,
+          isScheduled,
           status: schedule.status
         });
         
         return scheduleDate === todayDate && 
                isFutureTime && 
-               isScheduledOrInProgress && 
-               isNotMissed;
+               isScheduled;
       }).length;
       
-      const todayCompletedCount = allSchedules.filter(schedule => {
-        const scheduleDate = new Date(schedule.shift_time).toDateString();
-        const todayDate = today.toDateString();
-        return scheduleDate === todayDate && schedule.status === 'completed';
-      }).length;
+      const todayCompletedCount = completedSchedules.length;
       
       const calculatedStats = {
         missedScheduled: missedCount,
@@ -101,46 +117,96 @@ const Dashboard: React.FC = () => {
       
       console.log('Calculated stats:', calculatedStats);
       
-      setSchedules(allSchedules);
-      setStats(calculatedStats);
+      // Only update state if component is still mounted - use functional updates to prevent re-renders
+      if (isMounted.current) {
+        setSchedules(prevSchedules => {
+          // Only update if there are actual changes to prevent unnecessary re-renders
+          const hasChanges = JSON.stringify(prevSchedules) !== JSON.stringify(allSchedules);
+          return hasChanges ? allSchedules : prevSchedules;
+        });
+        
+        setStats(prevStats => {
+          // Only update if there are actual changes
+          const hasChanges = JSON.stringify(prevStats) !== JSON.stringify(calculatedStats);
+          return hasChanges ? calculatedStats : prevStats;
+        });
+        
+        if (loading) {
+          setLoading(false);
+        }
+        setError(null);
+      }
       
       console.log('Dashboard data loaded successfully');
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
-      setError('Failed to load dashboard data. Please try again.');
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data. Please check your internet connection.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      
+      // Only update state if component is still mounted
+      if (isMounted.current) {
+        setError('Failed to load dashboard data. Please try again.');
+        if (loading) {
+          setLoading(false);
+        }
+        
+        // Only show toast on initial load or when explicitly requested
+        if (showErrorToast) {
+          toast({
+            title: "Error",
+            description: "Failed to load dashboard data. Please check your internet connection.",
+            variant: "destructive",
+          });
+        }
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  const isScheduleMissed = (schedule: Schedule): boolean => {
-    if (schedule.status !== 'scheduled') return false;
+    // Component mounted
+    isMounted.current = true;
     
-    const scheduleTime = new Date(schedule.shift_time);
-    const now = new Date();
+    // Initial load with error toast
+    loadData(true);
     
-    // Consider schedule missed if current time is past schedule time + 5 minutes grace period
-    const missedThreshold = new Date(scheduleTime.getTime() + 5 * 60 * 1000);
-    const isMissed = now > missedThreshold;
+    // Set up silent auto-refresh every 5 seconds - use requestAnimationFrame for smoother updates
+    const startAutoRefresh = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      
+      intervalRef.current = setInterval(() => {
+        if (isMounted.current && !document.hidden) { // Only refresh when tab is visible
+          requestAnimationFrame(() => {
+            loadData(false); // Silent refresh without error toast
+          });
+        }
+      }, 5000);
+    };
     
-    console.log(`Miss check for schedule ${schedule.id}:`, {
-      scheduleTime,
-      now,
-      missedThreshold,
-      isMissed
-    });
+    startAutoRefresh();
     
-    return isMissed;
-  };
+    // Handle visibility change to pause/resume auto-refresh
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      } else {
+        startAutoRefresh();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup function
+    return () => {
+      isMounted.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []); // Empty dependency array to prevent re-running
 
   const getSchedulesByCategory = () => {
     const today = new Date();
@@ -152,30 +218,27 @@ const Dashboard: React.FC = () => {
       schedule.status === 'in_progress'
     );
     
-    // Get missed schedules from today (00:00 to 23:59) that are cancelled or missed
+    // Get missed schedules from today with status 'missed'
     const missedSchedules = schedules.filter(schedule => {
       const scheduleTime = new Date(schedule.shift_time);
       const scheduleDate = scheduleTime.toDateString();
       const isToday = scheduleDate === todayDateString;
-      const isMissed = isScheduleMissed(schedule);
-      const isCancelled = schedule.status === 'cancelled';
+      const isMissed = schedule.status === 'missed';
       
-      return isToday && (isMissed || isCancelled);
+      return isToday && isMissed;
     });
     
-    // Upcoming today: future schedules for today that are scheduled and not missed
+    // Upcoming today: future schedules for today that are scheduled
     const upcomingToday = schedules.filter(schedule => {
       const scheduleTime = new Date(schedule.shift_time);
       const scheduleDate = scheduleTime.toDateString();
       const isFutureTime = scheduleTime > now;
       const isToday = scheduleDate === todayDateString;
       const isScheduled = schedule.status === 'scheduled';
-      const isNotMissed = !isScheduleMissed(schedule);
       
       return isToday && 
              isFutureTime && 
-             isScheduled && 
-             isNotMissed;
+             isScheduled;
     });
     
     const completedToday = schedules.filter(schedule => {
@@ -217,7 +280,7 @@ const Dashboard: React.FC = () => {
           <div className="text-center">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Error Loading Dashboard</h1>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={loadData}>Try Again</Button>
+            <Button onClick={() => loadData(true)}>Try Again</Button>
           </div>
         </div>
       </div>
@@ -340,7 +403,7 @@ const Dashboard: React.FC = () => {
               <ScheduleCard 
                 key={schedule.id} 
                 schedule={schedule} 
-                onRefresh={loadData}
+                onRefresh={() => loadData(false)}
               />
             ))}
 
@@ -350,7 +413,7 @@ const Dashboard: React.FC = () => {
                 key={schedule.id} 
                 schedule={schedule} 
                 isCompleted={true}
-                onRefresh={loadData}
+                onRefresh={() => loadData(false)}
               />
             ))}
 
@@ -383,7 +446,7 @@ const Dashboard: React.FC = () => {
                       key={schedule.id} 
                       schedule={schedule} 
                       isMissed={true}
-                      onRefresh={loadData}
+                      onRefresh={() => loadData(false)}
                     />
                   ))}
                 </div>

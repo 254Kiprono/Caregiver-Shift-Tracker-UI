@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui-setupconfig/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 interface ServiceNotesProps {
   serviceNotes: string;

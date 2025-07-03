@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { MapPin } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui-setupconfig/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { useGeolocation } from '../../hooks/useGeolocation';
 
 const LocationDisplay: React.FC = () => {

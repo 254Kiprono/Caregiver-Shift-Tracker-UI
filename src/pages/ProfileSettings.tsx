@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui-setupconfig/button';
-import { Input } from '../components/ui-setupconfig/input';
-import { Label } from '../components/ui-setupconfig/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui-setupconfig/card';
-import { Avatar, AvatarFallback } from '../components/ui-setupconfig/avatar';
-import { Separator } from '../components/ui-setupconfig/separator';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Avatar, AvatarFallback } from '../components/ui/avatar';
+import { Separator } from '../components/ui/separator';
 import { User, Mail, Phone, MapPin, Calendar, Save, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../hooks/use-toast';

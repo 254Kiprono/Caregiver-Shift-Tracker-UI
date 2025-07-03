@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Schedule } from '../types/schedule';
-import { toast } from '../components/ui-setupconfig/use-toast';
+import { toast } from '../components/ui/use-toast';
 
 export const useClockInValidation = () => {
   const [isValidating, setIsValidating] = useState(false);
@@ -51,7 +51,7 @@ export const useClockInValidation = () => {
         return false;
       }
 
-      // Remove location validation - just allow clock-in
+      // Allow clock-in
       return true;
     } finally {
       setIsValidating(false);

@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { Card, CardContent } from '../ui-setupconfig/card';
-import { Avatar, AvatarFallback } from '../ui-setupconfig/avatar';
+import { Card, CardContent } from '../ui/card';
+import { Avatar, AvatarFallback } from '../ui/avatar';
 
 interface DurationDisplayProps {
-  duration?: string;
-  serviceName?: string;
-  caregiverName?: string;
+  duration: string;
+  serviceName: string;
+  caregiverName: string;
 }
 
 const DurationDisplay: React.FC<DurationDisplayProps> = ({
@@ -21,16 +21,16 @@ const DurationDisplay: React.FC<DurationDisplayProps> = ({
           {duration || '01:35:40'}
         </div>
         <div className="text-base sm:text-lg font-semibold text-careviah-green mb-2">
-          {serviceName || 'Service'}
+          {serviceName}
         </div>
         <div className="flex items-center justify-center space-x-3">
           <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
             <AvatarFallback className="bg-careviah-green text-white text-sm">
-              {caregiverName ? caregiverName.split(' ').map(n => n[0]).join('') : 'U'}
+              {caregiverName.split(' ').map(n => n[0]).join('')}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium text-sm sm:text-base">{caregiverName || 'Unknown'}</p>
+            <p className="font-medium text-sm sm:text-base">{caregiverName}</p>
           </div>
         </div>
       </CardContent>

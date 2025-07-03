@@ -16,7 +16,11 @@ export const scheduleService = {
   async getAllSchedules(): Promise<Schedule[]> {
     try {
       console.log('Calling getAllSchedules API...');
-      const response = await apiRequest(API_ENDPOINTS.ALL_SCHEDULES);
+      const response = await apiRequest(API_ENDPOINTS.ALL_SCHEDULES, {
+        headers: {
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
       console.log('getAllSchedules API response:', response);
       
       // Handle different response formats and include cancelled schedules
@@ -43,7 +47,11 @@ export const scheduleService = {
   async getTodaySchedules(): Promise<Schedule[]> {
     try {
       console.log('Calling getTodaySchedules API...');
-      const response = await apiRequest(API_ENDPOINTS.TODAY_SCHEDULES);
+      const response = await apiRequest(API_ENDPOINTS.TODAY_SCHEDULES, {
+        headers: {
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
       console.log('getTodaySchedules API response:', response);
       
       if (response.message?.schedules && Array.isArray(response.message.schedules)) {
@@ -64,7 +72,11 @@ export const scheduleService = {
   async getUpcomingSchedules(): Promise<Schedule[]> {
     try {
       console.log('Calling getUpcomingSchedules API...');
-      const response = await apiRequest(API_ENDPOINTS.UPCOMING_SCHEDULES);
+      const response = await apiRequest(API_ENDPOINTS.UPCOMING_SCHEDULES, {
+        headers: {
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
       console.log('getUpcomingSchedules API response:', response);
       
       if (response.schedules && Array.isArray(response.schedules)) {
@@ -84,7 +96,11 @@ export const scheduleService = {
   async getMissedSchedules(): Promise<Schedule[]> {
     try {
       console.log('Calling getMissedSchedules API...');
-      const response = await apiRequest(API_ENDPOINTS.MISSED_SCHEDULES);
+      const response = await apiRequest(API_ENDPOINTS.MISSED_SCHEDULES, {
+        headers: {
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
       console.log('getMissedSchedules API response:', response);
       
       // Handle null/empty responses specifically for missed schedules
@@ -108,7 +124,11 @@ export const scheduleService = {
   async getTodayCompletedSchedules(): Promise<Schedule[]> {
     try {
       console.log('Calling getTodayCompletedSchedules API...');
-      const response = await apiRequest(API_ENDPOINTS.TODAY_COMPLETED_SCHEDULES);
+      const response = await apiRequest(API_ENDPOINTS.TODAY_COMPLETED_SCHEDULES, {
+        headers: {
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
       console.log('getTodayCompletedSchedules API response:', response);
       
       if (response.schedules && Array.isArray(response.schedules)) {
@@ -128,7 +148,11 @@ export const scheduleService = {
   async getScheduleById(id: string): Promise<Schedule> {
     try {
       console.log('Calling getScheduleById API for ID:', id);
-      const response = await apiRequest(`${API_ENDPOINTS.SCHEDULE_DETAILS}/${id}`);
+      const response = await apiRequest(`${API_ENDPOINTS.SCHEDULE_DETAILS}/${id}`, {
+        headers: {
+          'X-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
       console.log('getScheduleById API response:', response);
       
       // Validate that the schedule has tasks before allowing clock-in
