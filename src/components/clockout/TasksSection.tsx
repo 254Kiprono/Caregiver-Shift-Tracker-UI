@@ -1,10 +1,10 @@
 
 import React from 'react';
 import { Check, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Checkbox } from '../ui/checkbox';
-import { Textarea } from '../ui/textarea';
-import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui-setupconfig/card';
+import { Checkbox } from '../ui-setupconfig/checkbox';
+import { Textarea } from '../ui-setupconfig/textarea';
+import { Button } from '../ui-setupconfig/button';
 import { Task } from '../../types/schedule';
 
 interface TasksSectionProps {

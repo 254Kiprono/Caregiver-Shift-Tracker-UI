@@ -1,7 +1,7 @@
 
 import React from 'react';
-import { Card, CardContent } from '../ui/card';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { Card, CardContent } from '../ui-setupconfig/card';
+import { Avatar, AvatarFallback } from '../ui-setupconfig/avatar';
 
 interface DurationDisplayProps {
   duration: string;

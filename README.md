@@ -32,7 +32,7 @@ A modern frontend web application for caregiver shift tracking and Electronic Vi
 - **Frontend Framework**: React 18 with TypeScript
 - **Build Tool**: Vite
 - **Styling**: Tailwind CSS
-- **UI Components**: Shadcn/ui-setupconfig
+- **UI Components**: Shadcn//ui-setupconfig/
 - **State Management**: React Context API
 - **Routing**: React Router DOM
 - **Icons**: Lucide React

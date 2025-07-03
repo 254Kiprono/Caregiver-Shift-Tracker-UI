@@ -1,15 +1,15 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from './ui/button';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Button } from './ui-setupconfig/button';
+import { Avatar, AvatarFallback } from './ui-setupconfig/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+} from './ui-setupconfig/dropdown-menu';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useIsMobile } from '../hooks/use-mobile';

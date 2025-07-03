@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent } from './ui/card';
-import { Button } from './ui/button';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Card, CardContent } from './ui-setupconfig/card';
+import { Button } from './ui-setupconfig/button';
+import { Avatar, AvatarFallback } from './ui-setupconfig/avatar';
 import { MapPin, Clock } from 'lucide-react';
 import { Schedule } from '../types/schedule';
 

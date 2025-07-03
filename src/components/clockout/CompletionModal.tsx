@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { Check, Clock, Calendar } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui-setupconfig/dialog';
+import { Button } from '../ui-setupconfig/button';
 
 interface CompletionModalProps {
   isOpen: boolean;

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Header from '../components/Header';
-import { Button } from '../components/ui/button';
+import { Button } from '../components/ui-setupconfig/button';
 import DurationDisplay from '../components/clockout/DurationDisplay';
 import TasksSection from '../components/clockout/TasksSection';
 import LocationDisplay from '../components/clockout/LocationDisplay';

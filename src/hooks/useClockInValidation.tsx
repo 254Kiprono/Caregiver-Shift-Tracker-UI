@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { Schedule } from '../types/schedule';
-import { toast } from '../components/ui/use-toast';
+import { toast } from '../components/ui-setupconfig/use-toast';
 
 export const useClockInValidation = () => {
   const [isValidating, setIsValidating] = useState(false);

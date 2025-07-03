@@ -1,12 +1,12 @@
 
 import React from 'react';
 import { Schedule } from '../types/schedule';
-import { Card, CardContent } from './ui/card';
-import { Button } from './ui/button';
+import { Card, CardContent } from './ui-setupconfig/card';
+import { Button } from './ui-setupconfig/button';
 import { Clock, MapPin, User, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { Badge } from './ui/badge';
+import { Avatar, AvatarFallback } from './ui-setupconfig/avatar';
+import { Badge } from './ui-setupconfig/badge';
 import CountdownTimer from './CountdownTimer';
 
 interface ScheduleCardProps {

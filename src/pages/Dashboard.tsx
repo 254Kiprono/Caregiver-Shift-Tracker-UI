@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, CheckCircle, Clock } from 'lucide-react';
 import Header from '../components/Header';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui-setupconfig/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui-setupconfig/card';
 import ScheduleCard from '../components/ScheduleCard';
 import MobileBottomNav from '../components/MobileBottomNav';
 import { Schedule, DashboardStats } from '../types/schedule';
 import { scheduleService } from '../services/scheduleService';
 import { useIsMobile } from '../hooks/use-mobile';
-import { toast } from '../components/ui/use-toast';
+import { toast } from '../components/ui-setupconfig/use-toast';
 import ActiveSessionCard from '../components/ActiveSessionCard';
 
 const Dashboard: React.FC = () => {
