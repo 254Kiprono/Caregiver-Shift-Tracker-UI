@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, CheckCircle, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { Button } from '../components/ui-setupconfig/button';
@@ -20,13 +20,44 @@ const Dashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const isMounted = useRef(true);
   const isMobile = useIsMobile();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadData = async (showErrorToast: boolean = true) => {
+  // Helper function to check if a schedule is truly from today
+  const isScheduleFromToday = (schedule: Schedule): boolean => {
+    const scheduleDate = new Date(schedule.shift_time);
+    const today = new Date();
+    
+    // Get today's date in local timezone
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDay = today.getDate();
+    
+    // Get schedule date in local timezone
+    const scheduleYear = scheduleDate.getFullYear();
+    const scheduleMonth = scheduleDate.getMonth();
+    const scheduleDay = scheduleDate.getDate();
+    
+    const isToday = scheduleYear === todayYear && 
+                   scheduleMonth === todayMonth && 
+                   scheduleDay === todayDay;
+    
+    console.log(`Schedule ${schedule.id} date check:`, {
+      scheduleDate: scheduleDate.toLocaleDateString(),
+      todayDate: today.toLocaleDateString(),
+      isToday
+    });
+    
+    return isToday;
+  };
+
+  const loadData = async (silent = false) => {
     try {
-      console.log('Loading dashboard data silently...');
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      
+      console.log('Loading dashboard data...');
       
       // Load all different schedule types
       const [
@@ -41,73 +72,70 @@ const Dashboard: React.FC = () => {
         scheduleService.getTodayCompletedSchedules()
       ]);
       
-      // Only update state if component is still mounted
-      if (!isMounted.current) return;
-      
+      console.log('Raw API responses:');
       console.log('Today schedules:', todaySchedules);
       console.log('Upcoming schedules:', upcomingSchedules);
       console.log('Missed schedules:', missedSchedules);
       console.log('Completed schedules:', completedSchedules);
       
-      // Combine all schedules, avoiding duplicates
+      // Filter all schedules to only include today's schedules
+      const filteredTodaySchedules = todaySchedules.filter(isScheduleFromToday);
+      const filteredUpcomingSchedules = upcomingSchedules.filter(isScheduleFromToday);
+      const filteredMissedSchedules = missedSchedules.filter(isScheduleFromToday);
+      const filteredCompletedSchedules = completedSchedules.filter(isScheduleFromToday);
+      
+      console.log('Filtered schedules for today:');
+      console.log('Filtered today schedules:', filteredTodaySchedules);
+      console.log('Filtered upcoming schedules:', filteredUpcomingSchedules);
+      console.log('Filtered missed schedules:', filteredMissedSchedules);
+      console.log('Filtered completed schedules:', filteredCompletedSchedules);
+      
+      // Combine all schedules, avoiding duplicates and only using today's schedules
       const allSchedules = [
-        ...todaySchedules,
-        ...upcomingSchedules,
-        ...missedSchedules,
-        ...completedSchedules
+        ...filteredTodaySchedules,
+        ...filteredUpcomingSchedules,
+        ...filteredMissedSchedules,
+        ...filteredCompletedSchedules
       ].filter((schedule, index, self) => 
         index === self.findIndex(s => s.id === schedule.id)
       );
       
-      console.log('Combined schedules:', allSchedules);
+      console.log('Combined today schedules:', allSchedules);
       
-      // Calculate stats - properly count backend missed schedules
+      // Calculate stats using only today's schedules
       const today = new Date();
-      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-      const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
       const now = new Date();
       
-      console.log('Time boundaries:', { startOfToday, endOfToday, now });
-      
-      // Count missed schedules - those with status 'missed' from today
+      // Count missed schedules - those with status 'missed' from today only
       const missedCount = allSchedules.filter(schedule => {
-        const scheduleTime = new Date(schedule.shift_time);
-        const isWithinToday = scheduleTime >= startOfToday && scheduleTime <= endOfToday;
         const isMissed = schedule.status === 'missed';
-        
         console.log(`Schedule ${schedule.id} missed check:`, {
-          scheduleTime,
-          isWithinToday,
           isMissed,
           status: schedule.status
         });
-        
-        return isWithinToday && isMissed;
+        return isMissed;
       }).length;
       
       // Calculate upcoming today schedules (future schedules for today only)
       const upcomingTodayCount = allSchedules.filter(schedule => {
         const scheduleTime = new Date(schedule.shift_time);
-        const scheduleDate = scheduleTime.toDateString();
-        const todayDate = today.toDateString();
         const isFutureTime = scheduleTime > now;
         const isScheduled = schedule.status === 'scheduled';
         
         console.log(`Upcoming check for schedule ${schedule.id}:`, {
           scheduleTime,
-          scheduleDate,
-          todayDate,
           isFutureTime,
           isScheduled,
           status: schedule.status
         });
         
-        return scheduleDate === todayDate && 
-               isFutureTime && 
-               isScheduled;
+        return isFutureTime && isScheduled;
       }).length;
       
-      const todayCompletedCount = completedSchedules.length;
+      // Count completed schedules from today only
+      const todayCompletedCount = allSchedules.filter(schedule => 
+        schedule.status === 'completed'
+      ).length;
       
       const calculatedStats = {
         missedScheduled: missedCount,
@@ -115,102 +143,40 @@ const Dashboard: React.FC = () => {
         completedToday: todayCompletedCount,
       };
       
-      console.log('Calculated stats:', calculatedStats);
+      console.log('Calculated stats for today only:', calculatedStats);
       
-      // Only update state if component is still mounted - use functional updates to prevent re-renders
-      if (isMounted.current) {
-        setSchedules(prevSchedules => {
-          // Only update if there are actual changes to prevent unnecessary re-renders
-          const hasChanges = JSON.stringify(prevSchedules) !== JSON.stringify(allSchedules);
-          return hasChanges ? allSchedules : prevSchedules;
-        });
-        
-        setStats(prevStats => {
-          // Only update if there are actual changes
-          const hasChanges = JSON.stringify(prevStats) !== JSON.stringify(calculatedStats);
-          return hasChanges ? calculatedStats : prevStats;
-        });
-        
-        if (loading) {
-          setLoading(false);
-        }
-        setError(null);
-      }
+      setSchedules(allSchedules);
+      setStats(calculatedStats);
       
       console.log('Dashboard data loaded successfully');
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
-      
-      // Only update state if component is still mounted
-      if (isMounted.current) {
+      if (!silent) {
         setError('Failed to load dashboard data. Please try again.');
-        if (loading) {
-          setLoading(false);
-        }
-        
-        // Only show toast on initial load or when explicitly requested
-        if (showErrorToast) {
-          toast({
-            title: "Error",
-            description: "Failed to load dashboard data. Please check your internet connection.",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data. Please check your internet connection.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      if (!silent) {
+        setLoading(false);
       }
     }
   };
 
   useEffect(() => {
-    // Component mounted
-    isMounted.current = true;
+    loadData();
     
-    // Initial load with error toast
-    loadData(true);
+    // Set up silent real-time polling every 10 seconds
+    const interval = setInterval(() => loadData(true), 10000);
     
-    // Set up silent auto-refresh every 5 seconds - use requestAnimationFrame for smoother updates
-    const startAutoRefresh = () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      
-      intervalRef.current = setInterval(() => {
-        if (isMounted.current && !document.hidden) { // Only refresh when tab is visible
-          requestAnimationFrame(() => {
-            loadData(false); // Silent refresh without error toast
-          });
-        }
-      }, 5000);
-    };
-    
-    startAutoRefresh();
-    
-    // Handle visibility change to pause/resume auto-refresh
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-          intervalRef.current = null;
-        }
-      } else {
-        startAutoRefresh();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Cleanup function
-    return () => {
-      isMounted.current = false;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []); // Empty dependency array to prevent re-running
+    return () => clearInterval(interval);
+  }, []);
 
   const getSchedulesByCategory = () => {
     const today = new Date();
-    const todayDateString = today.toDateString();
     const now = new Date();
     
     // Get active/in-progress schedule
@@ -219,32 +185,23 @@ const Dashboard: React.FC = () => {
     );
     
     // Get missed schedules from today with status 'missed'
-    const missedSchedules = schedules.filter(schedule => {
-      const scheduleTime = new Date(schedule.shift_time);
-      const scheduleDate = scheduleTime.toDateString();
-      const isToday = scheduleDate === todayDateString;
-      const isMissed = schedule.status === 'missed';
-      
-      return isToday && isMissed;
-    });
+    const missedSchedules = schedules.filter(schedule => 
+      schedule.status === 'missed'
+    );
     
     // Upcoming today: future schedules for today that are scheduled
     const upcomingToday = schedules.filter(schedule => {
       const scheduleTime = new Date(schedule.shift_time);
-      const scheduleDate = scheduleTime.toDateString();
       const isFutureTime = scheduleTime > now;
-      const isToday = scheduleDate === todayDateString;
       const isScheduled = schedule.status === 'scheduled';
       
-      return isToday && 
-             isFutureTime && 
-             isScheduled;
+      return isFutureTime && isScheduled;
     });
     
-    const completedToday = schedules.filter(schedule => {
-      const scheduleDate = new Date(schedule.shift_time).toDateString();
-      return scheduleDate === todayDateString && schedule.status === 'completed';
-    });
+    // Completed schedules from today
+    const completedToday = schedules.filter(schedule => 
+      schedule.status === 'completed'
+    );
 
     console.log('Categories:', {
       activeSchedule: activeSchedule?.id,
@@ -280,7 +237,7 @@ const Dashboard: React.FC = () => {
           <div className="text-center">
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Error Loading Dashboard</h1>
             <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => loadData(true)}>Try Again</Button>
+            <Button onClick={() => loadData()}>Try Again</Button>
           </div>
         </div>
       </div>
@@ -403,7 +360,7 @@ const Dashboard: React.FC = () => {
               <ScheduleCard 
                 key={schedule.id} 
                 schedule={schedule} 
-                onRefresh={() => loadData(false)}
+                onRefresh={() => loadData(true)}
               />
             ))}
 
@@ -413,7 +370,7 @@ const Dashboard: React.FC = () => {
                 key={schedule.id} 
                 schedule={schedule} 
                 isCompleted={true}
-                onRefresh={() => loadData(false)}
+                onRefresh={() => loadData(true)}
               />
             ))}
 
@@ -446,7 +403,7 @@ const Dashboard: React.FC = () => {
                       key={schedule.id} 
                       schedule={schedule} 
                       isMissed={true}
-                      onRefresh={() => loadData(false)}
+                      onRefresh={() => loadData(true)}
                     />
                   ))}
                 </div>

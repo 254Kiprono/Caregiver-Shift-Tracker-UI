@@ -31,7 +31,7 @@ const ActiveSessionCard: React.FC<ActiveSessionCardProps> = ({ schedule }) => {
     // Update immediately
     setCurrentDuration(calculateDuration());
 
-    // Update everysecond
+    // Update every second
     const interval = setInterval(() => {
       setCurrentDuration(calculateDuration());
     }, 1000);

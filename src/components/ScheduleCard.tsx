@@ -87,36 +87,17 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
     );
   };
 
-  // Check if schedule is in countdown period (5 minutes before to 5 minutes after)
-  const getCountdownStatus = () => {
-    if (schedule.status !== 'scheduled') return null;
-    
+  const statusBadge = getStatusBadge();
+  
+  // Check if schedule is starting soon (within 30 minutes)
+  const isStartingSoon = () => {
+    if (schedule.status !== 'scheduled') return false;
     const scheduleTime = new Date(schedule.shift_time);
     const now = new Date();
     const timeDiff = scheduleTime.getTime() - now.getTime();
-    const fiveMinutesBefore = 5 * 60 * 1000; // 5 minutes in milliseconds
-    const fiveMinutesAfter = -5 * 60 * 1000; // 5 minutes after (negative)
-    
-    // Show countdown from 5 minutes before until 5 minutes after
-    if (timeDiff <= fiveMinutesBefore && timeDiff >= fiveMinutesAfter) {
-      // Determine if we're in grace period
-      const isInGracePeriod = timeDiff < 0; // Past scheduled time
-      
-      return {
-        showCountdown: true,
-        isInGracePeriod,
-        bgColor: isInGracePeriod ? 'bg-red-50' : 'bg-orange-50',
-        borderColor: isInGracePeriod ? 'border-red-200' : 'border-orange-200',
-        textColor: isInGracePeriod ? 'text-red-700' : 'text-orange-700',
-        message: isInGracePeriod ? 'Grace Period - Clock in now!' : 'Ready to clock-in:'
-      };
-    }
-    
-    return null;
+    const thirtyMinutes = 30 * 60 * 1000;
+    return timeDiff > 0 && timeDiff <= thirtyMinutes;
   };
-
-  const statusBadge = getStatusBadge();
-  const countdownStatus = getCountdownStatus();
 
   return (
     <Card className="bg-white border-0 shadow-sm rounded-xl overflow-hidden">
@@ -174,24 +155,16 @@ const ScheduleCard: React.FC<ScheduleCardProps> = ({
             </div>
           </div>
 
-          {/* Countdown Timer for scheduled appointments in countdown period */}
-          {countdownStatus?.showCountdown && (
-            <div className={`mb-4 p-3 ${countdownStatus.bgColor} border ${countdownStatus.borderColor} rounded-lg`}>
+          {/* Countdown Timer for upcoming schedules */}
+          {isStartingSoon() && (
+            <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <div className="flex items-center justify-between">
-                <span className={`text-sm font-medium ${countdownStatus.textColor}`}>
-                  {countdownStatus.message}
-                </span>
+                <span className="text-sm font-medium text-orange-700">Starting in:</span>
                 <CountdownTimer 
                   targetTime={schedule.shift_time}
-                  gracePeriod={5} // 5 minute grace period
                   onExpired={onRefresh}
                 />
               </div>
-              {countdownStatus.isInGracePeriod && (
-                <div className="mt-2 text-xs text-red-600 font-medium">
-                  ⚠️ You are in the grace period - clock in immediately to avoid being marked as missed!
-                </div>
-              )}
             </div>
           )}
 

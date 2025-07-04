@@ -22,6 +22,7 @@ const ScheduleDetails: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isClockingIn, setIsClockingIn] = useState(false);
   const [userAddress, setUserAddress] = useState<string>('Getting your location...');
+  const [activeSchedule, setActiveSchedule] = useState<Schedule | null>(null);
 
   useEffect(() => {
     const loadSchedule = async () => {
@@ -75,6 +76,20 @@ const ScheduleDetails: React.FC = () => {
     getCurrentLocation();
   }, [getCurrentLocation]);
 
+  // Check for active schedules on component mount
+  useEffect(() => {
+    const checkActiveSchedule = async () => {
+      try {
+        const active = await scheduleService.getActiveSchedule();
+        setActiveSchedule(active);
+      } catch (error) {
+        console.error('Failed to check for active schedule:', error);
+      }
+    };
+
+    checkActiveSchedule();
+  }, []);
+
   // Convert coordinates to address when location is available
   useEffect(() => {
     if (latitude && longitude) {
@@ -121,6 +136,16 @@ const ScheduleDetails: React.FC = () => {
   const handleClockIn = async () => {
     if (!schedule || !id) return;
 
+    // Check if there's already an active schedule
+    if (activeSchedule && activeSchedule.id !== schedule.id) {
+      toast({
+        title: "Cannot Clock In",
+        description: `You already have an active schedule with ${activeSchedule.client_name}. Please clock out first.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate schedule using the validation hook
     if (!validateClockIn(schedule)) {
       return;
@@ -153,9 +178,10 @@ const ScheduleDetails: React.FC = () => {
         description: "You have successfully clocked in to this schedule.",
       });
       
-      // Update schedule status
+      // Update schedule status and active schedule
       const updatedSchedule = { ...schedule, status: 'in_progress' as const };
       setSchedule(updatedSchedule);
+      setActiveSchedule(updatedSchedule);
     } catch (error) {
       console.error('Clock in failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to clock in. Please try again.';
@@ -293,6 +319,21 @@ const ScheduleDetails: React.FC = () => {
           </Card>
         </div>
 
+        {/* Active Schedule Warning */}
+        {activeSchedule && activeSchedule.id !== schedule?.id && (
+          <Card className="mt-4 sm:mt-6 bg-orange-50 border-orange-200">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2 text-orange-700">
+                <Clock className="w-5 h-5" />
+                <div>
+                  <p className="font-medium">Active Schedule in Progress</p>
+                  <p className="text-sm">You have an active schedule with {activeSchedule.client_name}. Clock out first to start a new schedule.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Service Notes */}
         <Card className="mt-4 sm:mt-6">
           <CardHeader className="pb-4">
@@ -325,15 +366,16 @@ const ScheduleDetails: React.FC = () => {
 
         {/* Action Button */}
         <div className="mt-6 sm:mt-8">
-          {schedule.status === 'scheduled' && !isMissed ? (
+          {schedule?.status === 'scheduled' && !isMissed ? (
             <Button
               onClick={handleClockIn}
-              disabled={isClockingIn || isValidating}
-              className="w-full bg-careviah-green hover:bg-careviah-green/90 text-white py-3 h-12 text-base"
+              disabled={isClockingIn || isValidating || (activeSchedule && activeSchedule.id !== schedule.id)}
+              className="w-full bg-careviah-green hover:bg-careviah-green/90 text-white py-3 h-12 text-base disabled:opacity-50"
             >
-              {isClockingIn ? 'Clocking In...' : 'Clock-in Now'}
+              {isClockingIn ? 'Clocking In...' : 
+               (activeSchedule && activeSchedule.id !== schedule.id) ? 'Another Schedule Active' : 'Clock-in Now'}
             </Button>
-          ) : schedule.status === 'in_progress' ? (
+          ) : schedule?.status === 'in_progress' ? (
             <Button
               onClick={() => navigate(`/clock-out/${schedule.id}`)}
               className="w-full bg-careviah-green hover:bg-careviah-green/90 text-white py-3 h-12 text-base"
@@ -349,7 +391,7 @@ const ScheduleDetails: React.FC = () => {
           ) : (
             <div className="text-center">
               <Badge className="px-4 py-2 text-sm">
-                Schedule {schedule.status}
+                Schedule {schedule?.status}
               </Badge>
             </div>
           )}

@@ -3,18 +3,38 @@ import React from 'react';
 import { Check, Clock, Calendar } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui-setupconfig/dialog';
 import { Button } from '../ui-setupconfig/button';
+import { Schedule } from '../../types/schedule';
 
 interface CompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  schedule?: Schedule | null;
 }
 
 const CompletionModal: React.FC<CompletionModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  schedule,
 }) => {
+  const getScheduleDate = () => {
+    if (!schedule) return 'Date not available';
+    return schedule.date || new Date(schedule.shift_time).toLocaleDateString();
+  };
+
+  const getScheduleTime = () => {
+    if (!schedule) return 'Time not available';
+    const startTime = schedule.time || new Date(schedule.shift_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const endTime = schedule.clockOutTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${startTime} - ${endTime}`;
+  };
+
+  const getDuration = () => {
+    if (!schedule) return '';
+    return schedule.duration || '1 hour';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md w-[90%] mx-auto bg-careviah-green text-white border-0 rounded-2xl">
@@ -30,12 +50,14 @@ const CompletionModal: React.FC<CompletionModalProps> = ({
           <DialogDescription className="space-y-3 text-white/90 text-center">
             <div className="flex items-center justify-center space-x-2">
               <Calendar className="w-4 h-4" />
-              <span className="text-sm lg:text-base">Mon, 15 January 2025</span>
+              <span className="text-sm lg:text-base">{getScheduleDate()}</span>
             </div>
             <div className="flex items-center justify-center space-x-2">
               <Clock className="w-4 h-4" />
-              <span className="text-sm lg:text-base">10:30 - 11:30 SGT</span>
-              <span className="text-xs lg:text-sm opacity-80">(1 hour)</span>
+              <span className="text-sm lg:text-base">{getScheduleTime()}</span>
+              {getDuration() && (
+                <span className="text-xs lg:text-sm opacity-80">({getDuration()})</span>
+              )}
             </div>
           </DialogDescription>
         </DialogHeader>

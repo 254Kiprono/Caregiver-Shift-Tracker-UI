@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -10,6 +11,7 @@ import ServiceNotes from '../components/clockout/ServiceNotes';
 import CompletionModal from '../components/clockout/CompletionModal';
 import { Schedule, Task } from '../types/schedule';
 import { getScheduleById, endVisit, updateTaskStatus } from '../services/mockData';
+import { scheduleService } from '../services/scheduleService';
 import { useToast } from '../hooks/use-toast';
 import { useGeolocation } from '../hooks/useGeolocation';
 
@@ -29,10 +31,31 @@ const ClockOut: React.FC = () => {
       if (!id) return;
       
       try {
-        const scheduleData = await getScheduleById(id);
+        // Use the updated scheduleService instead of mockData
+        const scheduleData = await scheduleService.getScheduleById(id);
         if (scheduleData) {
-          setSchedule(scheduleData);
-          setTasks(scheduleData.tasks.map(task => ({ ...task })));
+          // Transform backend data to frontend format
+          const transformedSchedule: Schedule = {
+            ...scheduleData,
+            caregiverName: scheduleData.client_name || 'Unknown Caregiver',
+            caregiverId: scheduleData.user_id?.toString() || '',
+            serviceName: 'Caregiver Service',
+            date: new Date(scheduleData.shift_time).toLocaleDateString(),
+            time: new Date(scheduleData.shift_time).toLocaleTimeString(),
+            clientContact: {
+              email: 'client@example.com',
+              phone: '+1234567890'
+            },
+            address: scheduleData.location,
+            serviceNotes: 'Standard caregiver service',
+            tasks: scheduleData.tasks?.map(task => ({
+              ...task,
+              name: task.description,
+              completed: task.status === 'completed'
+            })) || []
+          };
+          setSchedule(transformedSchedule);
+          setTasks(transformedSchedule.tasks.map(task => ({ ...task })));
         }
       } catch (error) {
         console.error('Failed to load schedule:', error);
@@ -65,8 +88,31 @@ const ClockOut: React.FC = () => {
     );
   };
 
+  const validateTaskCompletion = (): boolean => {
+    // Check if all tasks have been addressed (either completed or marked as not completed with reason)
+    const unaddressedTasks = tasks.filter(task => {
+      return task.completed === undefined || (task.completed === false && !task.reason?.trim());
+    });
+
+    if (unaddressedTasks.length > 0) {
+      toast({
+        title: "Cannot Clock Out",
+        description: "Please complete all tasks or provide reasons for incomplete tasks before clocking out.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleClockOut = async () => {
     if (!schedule || !id) return;
+
+    // Validate task completion before proceeding
+    if (!validateTaskCompletion()) {
+      return;
+    }
 
     setIsClockingOut(true);
     
@@ -77,24 +123,19 @@ const ClockOut: React.FC = () => {
       const taskUpdatePromises = tasks.map(async (task) => {
         try {
           console.log('Updating task:', task.id, task.completed ? 'completed' : 'not_completed');
-          await updateTaskStatus(task.id, {
+          await scheduleService.updateTaskStatus(task.id, {
             status: task.completed ? 'completed' : 'not_completed',
             reason: task.reason || undefined,
           });
-          return { success: true, taskId: task.id };
         } catch (error) {
           console.error('Failed to update task:', task.id, error);
-          return { success: false, taskId: task.id, error };
+          // Don't throw - continue with other tasks
         }
       });
 
-      const taskResults = await Promise.all(taskUpdatePromises);
-      const failedTasks = taskResults.filter(result => !result.success);
-      
-      if (failedTasks.length > 0) {
-        console.warn('Some tasks failed to update:', failedTasks);
-        // Continue with clock-out even if some tasks failed
-      }
+      // Wait for all task updates to complete (or fail)
+      await Promise.allSettled(taskUpdatePromises);
+      console.log('All task updates completed');
 
       // End the visit with location if available, otherwise use default coordinates
       const clockOutLat = latitude || 0;
@@ -102,10 +143,23 @@ const ClockOut: React.FC = () => {
       
       console.log('Ending visit with location:', { latitude: clockOutLat, longitude: clockOutLng });
       
-      await endVisit(id, clockOutLat, clockOutLng);
-      console.log('Visit ended successfully');
+      // Use the updated scheduleService.endVisit which handles errors gracefully
+      await scheduleService.endVisit(id, { 
+        latitude: clockOutLat, 
+        longitude: clockOutLng 
+      });
       
-      // Show success message
+      // Update the local schedule state to completed
+      const updatedSchedule = { 
+        ...schedule, 
+        status: 'completed' as const,
+        clockOutTime: new Date().toLocaleTimeString(),
+        end_time: new Date().toISOString()
+      };
+      setSchedule(updatedSchedule);
+      
+      console.log('Clock-out process completed successfully, schedule status updated to completed');
+      
       toast({
         title: "Schedule Completed",
         description: "You have successfully completed this schedule.",
@@ -221,6 +275,7 @@ const ClockOut: React.FC = () => {
         isOpen={showCompletionModal}
         onClose={() => setShowCompletionModal(false)}
         onConfirm={handleConfirmCompletion}
+        schedule={schedule}
       />
     </div>
   );
